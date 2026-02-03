@@ -1,0 +1,3 @@
+DROP TYPE IF EXISTS WaitlistStatus;
+DROP TABLE IF EXISTS waitlists;
+
