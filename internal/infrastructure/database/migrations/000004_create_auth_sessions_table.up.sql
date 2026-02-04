@@ -5,7 +5,11 @@ CREATE TABLE IF NOT EXISTS auth_sessions(
   ip_address INET,
   user_agent TEXT,
   expires_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ
+   
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+
+
 );
 
 

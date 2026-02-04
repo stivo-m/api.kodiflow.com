@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -17,8 +18,25 @@ const (
 	RefreshTokenBytes = 32
 )
 
-var AccessTokenExpiry = time.Now().Add(time.Minute * 15)
-var RefreshTokenTtl = time.Hour * 24 * 7
+var AccessTokenExpiry = time.Now().Add(time.Minute * 15) // 15 minutes
+var RefreshTokenTtl = time.Hour * 24                     // 1 day
+
+// Generate otp code
+
+func GenerateOTP(length int) (string, error) {
+	const digits = "0123456789"
+	bytes := make([]byte, length)
+
+	for i := range bytes {
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(digits))))
+		if err != nil {
+			return "", err
+		}
+		bytes[i] = digits[n.Int64()]
+	}
+
+	return string(bytes), nil
+}
 
 // Generates a new jwt token
 func CreateJwtToken(userId uuid.UUID) (string, error) {

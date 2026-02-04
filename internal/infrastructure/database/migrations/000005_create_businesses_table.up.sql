@@ -1,4 +1,10 @@
-CREATE TYPE BusinessStatus AS ENUM ('pending', 'active', 'suspended');
+DO $$
+BEGIN
+  CREATE TYPE BusinessStatus AS ENUM ('pending', 'active', 'suspended');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END
+$$;
 
 CREATE TABLE IF NOT EXISTS businesses(
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -10,8 +16,9 @@ CREATE TABLE IF NOT EXISTS businesses(
   phone VARCHAR(30),
   country VARCHAR(2) DEFAULT 'KE',
   status BusinessStatus DEFAULT 'pending', 
-  created_at TIMESTAMPTZ,
-  updated_at TIMESTAMPTZ
+  
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
 
@@ -31,7 +38,11 @@ CREATE TABLE IF NOT EXISTS business_users (
   user_id UUID REFERENCES users(id),
   role VARCHAR(30), 
   is_active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMPTZ
+   
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+
+
 );
 
 
@@ -41,7 +52,17 @@ ON business_users(business_id, user_id);
 
 
 -- KYC related
-CREATE TYPE DocumentStatus AS ENUM ('pending', 'verified', 'rejected');
+DO $$
+BEGIN
+  CREATE TYPE DocumentStatus AS ENUM ('pending', 'verified', 'rejected');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END
+$$;
+
+
+
+
 CREATE TABLE IF NOT EXISTS business_kyc(
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id UUID REFERENCES businesses(id),
@@ -50,7 +71,10 @@ CREATE TABLE IF NOT EXISTS business_kyc(
   status DocumentStatus DEFAULT 'pending', 
   status_text TEXT,
   verified_by UUID REFERENCES users(id),
-  verified_at TIMESTAMP,
-  created_at TIMESTAMP
+  verified_at TIMESTAMPTZ,
+   
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+
 );
 

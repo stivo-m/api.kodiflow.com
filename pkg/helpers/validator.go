@@ -11,26 +11,51 @@ import (
 )
 
 // ---- Reflect struct JSON tag names ----
+
 func jsonTagName(t reflect.Type, fieldName string) string {
+	// unwrap pointers
+	for t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+
+	// guard: must be struct
+	if t.Kind() != reflect.Struct {
+		return strings.ToLower(fieldName)
+	}
+
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
+
+		// direct field match
 		if f.Name == fieldName {
 			tag := f.Tag.Get("json")
+
 			if tag == "" {
 				return strings.ToLower(f.Name)
 			}
+
 			name := strings.Split(tag, ",")[0]
 			if name == "-" {
 				return ""
 			}
 			return name
 		}
-		if f.Anonymous && f.Type.Kind() == reflect.Struct {
-			if name := jsonTagName(f.Type, fieldName); name != "" {
-				return name
+
+		// recurse into embedded structs
+		if f.Anonymous {
+			ft := f.Type
+			for ft.Kind() == reflect.Ptr {
+				ft = ft.Elem()
+			}
+
+			if ft.Kind() == reflect.Struct {
+				if name := jsonTagName(ft, fieldName); name != "" {
+					return name
+				}
 			}
 		}
 	}
+
 	return strings.ToLower(fieldName)
 }
 

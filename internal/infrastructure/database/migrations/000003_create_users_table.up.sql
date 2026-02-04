@@ -12,8 +12,10 @@ CREATE TABLE IF NOT EXISTS users(
   
   last_login_at TIMESTAMPTZ,
 
-  created_at TIMESTAMPTZ NOT NULL,
-  updated_at TIMESTAMPTZ NOT NULL
+  
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS users_email_idx

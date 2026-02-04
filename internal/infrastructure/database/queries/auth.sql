@@ -38,7 +38,7 @@ RETURNING *;
 
 -- name: MarkEmailAsVerified :exec
 UPDATE users 
-SET is_email_verified = true
+SET is_email_verified = true, is_active = true
 WHERE id = $1;
 
 -- name: RecordLastLoginTime :exec

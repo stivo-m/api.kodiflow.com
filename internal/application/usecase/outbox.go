@@ -8,7 +8,9 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stivo-m/api.kodiflow.com/internal/domain/events"
 	"github.com/stivo-m/api.kodiflow.com/internal/infrastructure/database"
+	"github.com/stivo-m/api.kodiflow.com/pkg/hashing"
 )
 
 type OutboxProcessor struct {
@@ -98,10 +100,11 @@ func (p *OutboxProcessor) handleEvent(
 	q *database.Queries,
 	evt database.OutboxEvent,
 ) error {
-
 	switch evt.EventType {
-	case "waitlist.created":
-		return p.handleWaitlistCreated(ctx, q, evt)
+	case string(events.UserCreatedEvent):
+		return p.handleUserCreated(ctx, q, evt)
+	case string(events.UserForgotPasswordEvent):
+		return p.handleUserForgotPassword(ctx, q, evt)
 
 	default:
 		log.Printf("unknown event type: %s", evt.EventType)
@@ -109,23 +112,58 @@ func (p *OutboxProcessor) handleEvent(
 	}
 }
 
-// Waitlist created handler
-func (p *OutboxProcessor) handleWaitlistCreated(
+// Handle new user accounts
+func (p *OutboxProcessor) handleUserCreated(
 	ctx context.Context,
 	q *database.Queries,
 	evt database.OutboxEvent,
 ) error {
 
-	log.Printf("event %s has started processing ....", evt.ID)
-	var payload struct {
-		Email  string `json:"email"`
-		Source string `json:"source"`
-	}
-
+	var payload events.UserEventPayload
 	if err := json.Unmarshal(evt.Payload, &payload); err != nil {
 		return err
 	}
 
-	return nil
+	code, err := hashing.GenerateOTP(6)
+	if err != nil {
+		return err
+	}
+
+	params := database.StoreVerificationRecordParams{
+		UserID:           evt.AggregateID,
+		VerificationType: "email_verification",
+		VerificationCode: code,
+	}
+
+	// TODO: Send verification email
+
+	return q.StoreVerificationRecord(ctx, params)
 }
 
+// Handle user forgot password
+func (p *OutboxProcessor) handleUserForgotPassword(
+	ctx context.Context,
+	q *database.Queries,
+	evt database.OutboxEvent,
+) error {
+
+	var payload events.UserEventPayload
+	if err := json.Unmarshal(evt.Payload, &payload); err != nil {
+		return err
+	}
+
+	code, err := hashing.GenerateOTP(6)
+	if err != nil {
+		return err
+	}
+
+	params := database.StoreVerificationRecordParams{
+		UserID:           evt.AggregateID,
+		VerificationType: "reset_password",
+		VerificationCode: code,
+	}
+
+	// TODO: Send verification email
+
+	return q.StoreVerificationRecord(ctx, params)
+}

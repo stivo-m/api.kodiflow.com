@@ -203,7 +203,7 @@ func (q *Queries) FindUserByPhone(ctx context.Context, phone pgtype.Text) (FindU
 }
 
 const getTokenForUser = `-- name: GetTokenForUser :one
-select id, user_id, refresh_token_hash, ip_address, user_agent, expires_at, created_at
+select id, user_id, refresh_token_hash, ip_address, user_agent, expires_at, created_at, updated_at
 from auth_sessions
 where user_id = $1
 limit 1
@@ -220,13 +220,14 @@ func (q *Queries) GetTokenForUser(ctx context.Context, userID uuid.UUID) (AuthSe
 		&i.UserAgent,
 		&i.ExpiresAt,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const markEmailAsVerified = `-- name: MarkEmailAsVerified :exec
 UPDATE users 
-SET is_email_verified = true
+SET is_email_verified = true, is_active = true
 WHERE id = $1
 `
 

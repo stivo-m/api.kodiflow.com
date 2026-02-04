@@ -2,9 +2,11 @@ package dto
 
 import (
 	"time"
-
-	"github.com/google/uuid"
 )
+
+type LogoutDto struct {
+	RefreshToken string `json:"refresh_token" validate:"required,min=6"`
+}
 
 type RefreshTokenDto struct {
 	RefreshToken string `json:"refresh_token" validate:"required,min=6"`
@@ -21,7 +23,7 @@ type RefreshTokenResponse struct {
 
 type CreateUserDto struct {
 	FullName string `json:"full_name" validate:"required,min=5"`
-	Email    string `json:"email" validate:"required,min=5"`
+	Email    string `json:"email" validate:"required,email,min=5"`
 	Phone    string `json:"phone" validate:"required,min=5"`
 	Password string `json:"password" validate:"required,min=4"`
 }
@@ -50,4 +52,9 @@ type UserRecord struct {
 type LoginResponse struct {
 	User   UserRecord           `json:"user"`
 	Tokens RefreshTokenResponse `json:"tokens"`
+}
+
+type VerifyEmailDto struct {
+	Email string `json:"email" validate:"required,email,min=5"`
+	Code  string `json:"code" validate:"required,min=6"`
 }

@@ -93,7 +93,7 @@ INSERT INTO business_kyc (
   status
 )
 VALUES ($1, $2, $3, 'pending')
-RETURNING id, business_id, document_type, document_url, status, status_text, verified_by, verified_at, created_at
+RETURNING id, business_id, document_type, document_url, status, status_text, verified_by, verified_at, created_at, updated_at
 `
 
 type CreateBusinessKYCParams struct {
@@ -115,6 +115,7 @@ func (q *Queries) CreateBusinessKYC(ctx context.Context, arg CreateBusinessKYCPa
 		&i.VerifiedBy,
 		&i.VerifiedAt,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -180,7 +181,7 @@ func (q *Queries) GetBusinessByKRAPIN(ctx context.Context, kraPin string) (Busin
 }
 
 const getBusinessKYC = `-- name: GetBusinessKYC :many
-select id, business_id, document_type, document_url, status, status_text, verified_by, verified_at, created_at
+select id, business_id, document_type, document_url, status, status_text, verified_by, verified_at, created_at, updated_at
 from business_kyc
 where business_id = $1
 order by created_at desc
@@ -205,6 +206,7 @@ func (q *Queries) GetBusinessKYC(ctx context.Context, businessID uuid.NullUUID) 
 			&i.VerifiedBy,
 			&i.VerifiedAt,
 			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -255,7 +257,7 @@ where status = $1
 order by created_at desc
 `
 
-func (q *Queries) ListBusinessesByStatus(ctx context.Context, status NullBusinessstatus) ([]Business, error) {
+func (q *Queries) ListBusinessesByStatus(ctx context.Context, status interface{}) ([]Business, error) {
 	rows, err := q.db.Query(ctx, listBusinessesByStatus, status)
 	if err != nil {
 		return nil, err
@@ -381,7 +383,7 @@ WHERE id = $1
 
 type UpdateBusinessStatusParams struct {
 	ID     uuid.UUID
-	Status NullBusinessstatus
+	Status interface{}
 }
 
 func (q *Queries) UpdateBusinessStatus(ctx context.Context, arg UpdateBusinessStatusParams) error {
@@ -399,7 +401,7 @@ WHERE id = $1
 
 type UpdateKYCStatusParams struct {
 	ID         uuid.UUID
-	Status     NullDocumentstatus
+	Status     interface{}
 	VerifiedBy uuid.NullUUID
 }
 

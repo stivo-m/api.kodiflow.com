@@ -5,99 +5,11 @@
 package database
 
 import (
-	"database/sql/driver"
-	"fmt"
 	"net/netip"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
-
-type Businessstatus string
-
-const (
-	BusinessstatusPending   Businessstatus = "pending"
-	BusinessstatusActive    Businessstatus = "active"
-	BusinessstatusSuspended Businessstatus = "suspended"
-)
-
-func (e *Businessstatus) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = Businessstatus(s)
-	case string:
-		*e = Businessstatus(s)
-	default:
-		return fmt.Errorf("unsupported scan type for Businessstatus: %T", src)
-	}
-	return nil
-}
-
-type NullBusinessstatus struct {
-	Businessstatus Businessstatus
-	Valid          bool // Valid is true if Businessstatus is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullBusinessstatus) Scan(value interface{}) error {
-	if value == nil {
-		ns.Businessstatus, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.Businessstatus.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullBusinessstatus) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.Businessstatus), nil
-}
-
-type Documentstatus string
-
-const (
-	DocumentstatusPending  Documentstatus = "pending"
-	DocumentstatusVerified Documentstatus = "verified"
-	DocumentstatusRejected Documentstatus = "rejected"
-)
-
-func (e *Documentstatus) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = Documentstatus(s)
-	case string:
-		*e = Documentstatus(s)
-	default:
-		return fmt.Errorf("unsupported scan type for Documentstatus: %T", src)
-	}
-	return nil
-}
-
-type NullDocumentstatus struct {
-	Documentstatus Documentstatus
-	Valid          bool // Valid is true if Documentstatus is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullDocumentstatus) Scan(value interface{}) error {
-	if value == nil {
-		ns.Documentstatus, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.Documentstatus.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullDocumentstatus) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.Documentstatus), nil
-}
 
 type AuthSession struct {
 	ID               uuid.UUID
@@ -107,6 +19,7 @@ type AuthSession struct {
 	UserAgent        pgtype.Text
 	ExpiresAt        pgtype.Timestamptz
 	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
 }
 
 type Business struct {
@@ -118,7 +31,7 @@ type Business struct {
 	Email        pgtype.Text
 	Phone        pgtype.Text
 	Country      pgtype.Text
-	Status       NullBusinessstatus
+	Status       interface{}
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
 }
@@ -128,11 +41,12 @@ type BusinessKyc struct {
 	BusinessID   uuid.NullUUID
 	DocumentType pgtype.Text
 	DocumentUrl  pgtype.Text
-	Status       NullDocumentstatus
+	Status       interface{}
 	StatusText   pgtype.Text
 	VerifiedBy   uuid.NullUUID
-	VerifiedAt   pgtype.Timestamp
-	CreatedAt    pgtype.Timestamp
+	VerifiedAt   pgtype.Timestamptz
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
 }
 
 type BusinessUser struct {
@@ -142,6 +56,7 @@ type BusinessUser struct {
 	Role       pgtype.Text
 	IsActive   pgtype.Bool
 	CreatedAt  pgtype.Timestamptz
+	UpdatedAt  pgtype.Timestamptz
 }
 
 type OutboxEvent struct {
@@ -168,4 +83,12 @@ type User struct {
 	LastLoginAt     pgtype.Timestamptz
 	CreatedAt       pgtype.Timestamptz
 	UpdatedAt       pgtype.Timestamptz
+}
+
+type Verification struct {
+	ID               uuid.UUID
+	UserID           uuid.UUID
+	VerificationType interface{}
+	VerificationCode string
+	CreatedAt        pgtype.Timestamptz
 }

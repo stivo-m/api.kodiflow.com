@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"log"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -239,6 +240,8 @@ func (u *AuthUsecase) EmailLoginUsecase(ctx context.Context, payload *dto.EmailL
 		}
 	}
 
+	log.Printf("active: %v and verified: %v", user.IsActive.Bool, user.IsEmailVerified.Bool)
+
 	if !user.IsActive.Bool || !user.IsEmailVerified.Bool {
 		return &api.ApiResponse{
 			Code:    403,
@@ -307,6 +310,68 @@ func (u *AuthUsecase) EmailLoginUsecase(ctx context.Context, payload *dto.EmailL
 	}
 }
 
+// Handle verify email address
+func (u *AuthUsecase) VerifyEmailUsecase(ctx context.Context, payload *dto.VerifyEmailDto) *api.ApiResponse {
+	tx, err := u.pool.Begin(ctx)
+	if err != nil {
+		return &api.ApiResponse{
+			Code:    500,
+			Errors:  err,
+			Message: "Unable to handle logout",
+		}
+	}
+
+	defer tx.Rollback(ctx)
+	qtx := u.queries.WithTx(tx)
+
+	user, err := qtx.FindUserByEmail(ctx, payload.Email)
+	if err != nil {
+		return &api.ApiResponse{
+			Code:    400,
+			Errors:  err,
+			Message: "Either user is not found or code is expired",
+		}
+	}
+
+	params := database.GetVerifiationByCodeForUserParams{
+		UserID:           user.ID,
+		VerificationCode: payload.Code,
+	}
+	v, err := qtx.GetVerifiationByCodeForUser(ctx, params)
+	if err != nil {
+		return &api.ApiResponse{
+			Code:    400,
+			Errors:  err,
+			Message: "Either user is not found or code is expired",
+		}
+	}
+
+	err = qtx.MarkEmailAsVerified(ctx, user.ID)
+	if err != nil {
+		return &api.ApiResponse{
+			Code:    400,
+			Errors:  err,
+			Message: "Either user is not found or code is expired",
+		}
+	}
+
+	err = qtx.MarkVerificationCodeAsConsumed(ctx, v.ID)
+	if err != nil {
+		return &api.ApiResponse{
+			Code:    400,
+			Errors:  err,
+			Message: "Either user is not found or code is expired",
+		}
+	}
+
+	tx.Commit(ctx)
+
+	return &api.ApiResponse{
+		Code:    200,
+		Message: "Email has been verified successfully",
+	}
+}
+
 // Handle forgot password initiation
 
 // Handle reset password flow
@@ -358,8 +423,7 @@ func (u *AuthUsecase) RefreshTokenUsecase(ctx context.Context, payload *dto.Refr
 	}
 	defer qtx.DeleteRefreshToken(ctx, deleteParams)
 
-	ttl := time.Hour * 24 * 7
-	newToken, err := hashing.GenerateRefreshToken(ttl)
+	newToken, err := hashing.GenerateRefreshToken(hashing.RefreshTokenTtl)
 	if err != nil {
 		return &api.ApiResponse{
 			Code:    500,
