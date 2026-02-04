@@ -7,52 +7,141 @@ package database
 import (
 	"database/sql/driver"
 	"fmt"
+	"net/netip"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type Waitliststatus string
+type Businessstatus string
 
 const (
-	WaitliststatusPending    Waitliststatus = "pending"
-	WaitliststatusInvited    Waitliststatus = "invited"
-	WaitliststatusRegistered Waitliststatus = "registered"
+	BusinessstatusPending   Businessstatus = "pending"
+	BusinessstatusActive    Businessstatus = "active"
+	BusinessstatusSuspended Businessstatus = "suspended"
 )
 
-func (e *Waitliststatus) Scan(src interface{}) error {
+func (e *Businessstatus) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = Waitliststatus(s)
+		*e = Businessstatus(s)
 	case string:
-		*e = Waitliststatus(s)
+		*e = Businessstatus(s)
 	default:
-		return fmt.Errorf("unsupported scan type for Waitliststatus: %T", src)
+		return fmt.Errorf("unsupported scan type for Businessstatus: %T", src)
 	}
 	return nil
 }
 
-type NullWaitliststatus struct {
-	Waitliststatus Waitliststatus
-	Valid          bool // Valid is true if Waitliststatus is not NULL
+type NullBusinessstatus struct {
+	Businessstatus Businessstatus
+	Valid          bool // Valid is true if Businessstatus is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullWaitliststatus) Scan(value interface{}) error {
+func (ns *NullBusinessstatus) Scan(value interface{}) error {
 	if value == nil {
-		ns.Waitliststatus, ns.Valid = "", false
+		ns.Businessstatus, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.Waitliststatus.Scan(value)
+	return ns.Businessstatus.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullWaitliststatus) Value() (driver.Value, error) {
+func (ns NullBusinessstatus) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.Waitliststatus), nil
+	return string(ns.Businessstatus), nil
+}
+
+type Documentstatus string
+
+const (
+	DocumentstatusPending  Documentstatus = "pending"
+	DocumentstatusVerified Documentstatus = "verified"
+	DocumentstatusRejected Documentstatus = "rejected"
+)
+
+func (e *Documentstatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = Documentstatus(s)
+	case string:
+		*e = Documentstatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for Documentstatus: %T", src)
+	}
+	return nil
+}
+
+type NullDocumentstatus struct {
+	Documentstatus Documentstatus
+	Valid          bool // Valid is true if Documentstatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullDocumentstatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.Documentstatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.Documentstatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullDocumentstatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.Documentstatus), nil
+}
+
+type AuthSession struct {
+	ID               uuid.UUID
+	UserID           uuid.UUID
+	RefreshTokenHash pgtype.Text
+	IpAddress        *netip.Addr
+	UserAgent        pgtype.Text
+	ExpiresAt        pgtype.Timestamptz
+	CreatedAt        pgtype.Timestamptz
+}
+
+type Business struct {
+	ID           uuid.UUID
+	LegalName    string
+	TradingName  pgtype.Text
+	KraPin       string
+	BusinessType pgtype.Text
+	Email        pgtype.Text
+	Phone        pgtype.Text
+	Country      pgtype.Text
+	Status       NullBusinessstatus
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+}
+
+type BusinessKyc struct {
+	ID           uuid.UUID
+	BusinessID   uuid.NullUUID
+	DocumentType pgtype.Text
+	DocumentUrl  pgtype.Text
+	Status       NullDocumentstatus
+	StatusText   pgtype.Text
+	VerifiedBy   uuid.NullUUID
+	VerifiedAt   pgtype.Timestamp
+	CreatedAt    pgtype.Timestamp
+}
+
+type BusinessUser struct {
+	ID         uuid.UUID
+	BusinessID uuid.NullUUID
+	UserID     uuid.NullUUID
+	Role       pgtype.Text
+	IsActive   pgtype.Bool
+	CreatedAt  pgtype.Timestamptz
 }
 
 type OutboxEvent struct {
@@ -68,10 +157,15 @@ type OutboxEvent struct {
 	ProcessedAt   pgtype.Timestamptz
 }
 
-type Waitlist struct {
-	ID        uuid.UUID
-	Email     string
-	Source    pgtype.Text
-	Status    NullWaitliststatus
-	CreatedAt pgtype.Timestamptz
+type User struct {
+	ID              uuid.UUID
+	Email           string
+	PasswordHash    string
+	FullName        pgtype.Text
+	Phone           pgtype.Text
+	IsEmailVerified pgtype.Bool
+	IsActive        pgtype.Bool
+	LastLoginAt     pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
 }

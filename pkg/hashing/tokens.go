@@ -17,6 +17,9 @@ const (
 	RefreshTokenBytes = 32
 )
 
+var AccessTokenExpiry = time.Now().Add(time.Minute * 15)
+var RefreshTokenTtl = time.Hour * 24 * 7
+
 // Generates a new jwt token
 func CreateJwtToken(userId uuid.UUID) (string, error) {
 	secretKey := []byte(config.MustGetEnv("JWT_SECRET_KEY"))
@@ -24,7 +27,7 @@ func CreateJwtToken(userId uuid.UUID) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256,
 		jwt.MapClaims{
 			"sub": userId.String(),
-			"exp": time.Now().Add(time.Minute * 30).Unix(),
+			"exp": AccessTokenExpiry.Unix(),
 		})
 
 	tokenString, err := token.SignedString(secretKey)
