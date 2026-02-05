@@ -34,8 +34,8 @@ WHERE phone IS NOT NULL;
 -- Business Users
 CREATE TABLE IF NOT EXISTS business_users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID REFERENCES businesses(id),
-  user_id UUID REFERENCES users(id),
+  business_id UUID REFERENCES businesses(id) NOT NULL,
+  user_id UUID REFERENCES users(id) NOT NULL,
   role VARCHAR(30), 
   is_active BOOLEAN DEFAULT TRUE,
    
@@ -65,7 +65,7 @@ $$;
 
 CREATE TABLE IF NOT EXISTS business_kyc(
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID REFERENCES businesses(id),
+  business_id UUID REFERENCES businesses(id) NOT NULL,
   document_type VARCHAR(50), 
   document_url TEXT,
   status DocumentStatus DEFAULT 'pending', 

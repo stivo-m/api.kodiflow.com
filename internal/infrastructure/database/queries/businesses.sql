@@ -9,7 +9,7 @@ INSERT INTO businesses (
   country
 )
 VALUES (
-  $1, $2, $3, $4, $5, $6, COALESCE($7, 'KE')
+  $1, $2, $3, $4, $5, $6, $7
 )
 RETURNING *;
 
@@ -123,5 +123,9 @@ select
     exists (
         select 1 from business_kyc where business_id = $1 and status = 'verified'
     ) as has_verified
+;
+
+-- name: CheckIfUserIsPartOfBusiness :one
+select exists (select 1 from business_users where business_id = $1 and user_id = $2)
 ;
 

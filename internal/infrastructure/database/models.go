@@ -38,7 +38,7 @@ type Business struct {
 
 type BusinessKyc struct {
 	ID           uuid.UUID
-	BusinessID   uuid.NullUUID
+	BusinessID   uuid.UUID
 	DocumentType pgtype.Text
 	DocumentUrl  pgtype.Text
 	Status       interface{}
@@ -51,8 +51,8 @@ type BusinessKyc struct {
 
 type BusinessUser struct {
 	ID         uuid.UUID
-	BusinessID uuid.NullUUID
-	UserID     uuid.NullUUID
+	BusinessID uuid.UUID
+	UserID     uuid.UUID
 	Role       pgtype.Text
 	IsActive   pgtype.Bool
 	CreatedAt  pgtype.Timestamptz

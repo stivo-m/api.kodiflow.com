@@ -6,6 +6,8 @@ var (
 	BusinessCreatedEvent DomainEvent = "businesses.created"
 	BusinessUpdatedEvent DomainEvent = "businesses.updated"
 	BusinessDeletedEvent DomainEvent = "businesses.deleted"
+
+	BusinessAggregateType AggregateType = "businesses"
 )
 
 type BusinessEventPayload struct {

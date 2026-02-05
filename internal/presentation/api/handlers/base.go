@@ -26,8 +26,11 @@ func NewApiHandlers(
 func (h *apiHandlers) RegisterRoutes() {
 	h.router.HandleFunc("/health", healthCheckHandler)
 
-	// Waitlists
+	// Auth
 	aHandler := newAuthHandler(h.queries, h.pool)
 	aHandler.RegisterRoutes(h.router)
 
+	// Businesses
+	bHandler := newBusinessHandler(h.queries, h.pool)
+	bHandler.RegisterRoutes(h.router)
 }

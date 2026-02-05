@@ -22,14 +22,30 @@ VALUES ($1, $2, $3)
 `
 
 type AddUserToBusinessParams struct {
-	BusinessID uuid.NullUUID
-	UserID     uuid.NullUUID
+	BusinessID uuid.UUID
+	UserID     uuid.UUID
 	Role       pgtype.Text
 }
 
 func (q *Queries) AddUserToBusiness(ctx context.Context, arg AddUserToBusinessParams) error {
 	_, err := q.db.Exec(ctx, addUserToBusiness, arg.BusinessID, arg.UserID, arg.Role)
 	return err
+}
+
+const checkIfUserIsPartOfBusiness = `-- name: CheckIfUserIsPartOfBusiness :one
+select exists (select 1 from business_users where business_id = $1 and user_id = $2)
+`
+
+type CheckIfUserIsPartOfBusinessParams struct {
+	BusinessID uuid.UUID
+	UserID     uuid.UUID
+}
+
+func (q *Queries) CheckIfUserIsPartOfBusiness(ctx context.Context, arg CheckIfUserIsPartOfBusinessParams) (bool, error) {
+	row := q.db.QueryRow(ctx, checkIfUserIsPartOfBusiness, arg.BusinessID, arg.UserID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const createBusiness = `-- name: CreateBusiness :one
@@ -43,7 +59,7 @@ INSERT INTO businesses (
   country
 )
 VALUES (
-  $1, $2, $3, $4, $5, $6, COALESCE($7, 'KE')
+  $1, $2, $3, $4, $5, $6, $7
 )
 RETURNING id, legal_name, trading_name, kra_pin, business_type, email, phone, country, status, created_at, updated_at
 `
@@ -55,7 +71,7 @@ type CreateBusinessParams struct {
 	BusinessType pgtype.Text
 	Email        pgtype.Text
 	Phone        pgtype.Text
-	Column7      interface{}
+	Country      pgtype.Text
 }
 
 func (q *Queries) CreateBusiness(ctx context.Context, arg CreateBusinessParams) (Business, error) {
@@ -66,7 +82,7 @@ func (q *Queries) CreateBusiness(ctx context.Context, arg CreateBusinessParams) 
 		arg.BusinessType,
 		arg.Email,
 		arg.Phone,
-		arg.Column7,
+		arg.Country,
 	)
 	var i Business
 	err := row.Scan(
@@ -97,7 +113,7 @@ RETURNING id, business_id, document_type, document_url, status, status_text, ver
 `
 
 type CreateBusinessKYCParams struct {
-	BusinessID   uuid.NullUUID
+	BusinessID   uuid.UUID
 	DocumentType pgtype.Text
 	DocumentUrl  pgtype.Text
 }
@@ -187,7 +203,7 @@ where business_id = $1
 order by created_at desc
 `
 
-func (q *Queries) GetBusinessKYC(ctx context.Context, businessID uuid.NullUUID) ([]BusinessKyc, error) {
+func (q *Queries) GetBusinessKYC(ctx context.Context, businessID uuid.UUID) ([]BusinessKyc, error) {
 	rows, err := q.db.Query(ctx, getBusinessKYC, businessID)
 	if err != nil {
 		return nil, err
@@ -225,8 +241,8 @@ where business_id = $1 and user_id = $2 and is_active = true
 `
 
 type GetUserBusinessRoleParams struct {
-	BusinessID uuid.NullUUID
-	UserID     uuid.NullUUID
+	BusinessID uuid.UUID
+	UserID     uuid.UUID
 }
 
 func (q *Queries) GetUserBusinessRole(ctx context.Context, arg GetUserBusinessRoleParams) (pgtype.Text, error) {
@@ -243,7 +259,7 @@ select
     ) as has_verified
 `
 
-func (q *Queries) HasVerifiedKYC(ctx context.Context, businessID uuid.NullUUID) (bool, error) {
+func (q *Queries) HasVerifiedKYC(ctx context.Context, businessID uuid.UUID) (bool, error) {
 	row := q.db.QueryRow(ctx, hasVerifiedKYC, businessID)
 	var has_verified bool
 	err := row.Scan(&has_verified)
@@ -297,7 +313,7 @@ where bu.user_id = $1 and bu.is_active = true
 order by b.created_at desc
 `
 
-func (q *Queries) ListBusinessesForUser(ctx context.Context, userID uuid.NullUUID) ([]Business, error) {
+func (q *Queries) ListBusinessesForUser(ctx context.Context, userID uuid.UUID) ([]Business, error) {
 	rows, err := q.db.Query(ctx, listBusinessesForUser, userID)
 	if err != nil {
 		return nil, err

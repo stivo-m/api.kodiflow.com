@@ -157,6 +157,51 @@ func (q *Queries) FindUserByEmail(ctx context.Context, email string) (FindUserBy
 	return i, err
 }
 
+const findUserById = `-- name: FindUserById :one
+select
+    id,
+    email,
+    password_hash,
+    full_name,
+    phone,
+    is_email_verified,
+    is_active,
+    last_login_at,
+    created_at
+from users
+where id = $1
+limit 1
+`
+
+type FindUserByIdRow struct {
+	ID              uuid.UUID
+	Email           string
+	PasswordHash    string
+	FullName        pgtype.Text
+	Phone           pgtype.Text
+	IsEmailVerified pgtype.Bool
+	IsActive        pgtype.Bool
+	LastLoginAt     pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamptz
+}
+
+func (q *Queries) FindUserById(ctx context.Context, id uuid.UUID) (FindUserByIdRow, error) {
+	row := q.db.QueryRow(ctx, findUserById, id)
+	var i FindUserByIdRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.FullName,
+		&i.Phone,
+		&i.IsEmailVerified,
+		&i.IsActive,
+		&i.LastLoginAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const findUserByPhone = `-- name: FindUserByPhone :one
 select
     id,

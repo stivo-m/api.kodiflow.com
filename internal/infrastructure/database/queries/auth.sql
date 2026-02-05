@@ -30,6 +30,22 @@ where phone = $1
 limit 1
 ;
 
+-- name: FindUserById :one
+select
+    id,
+    email,
+    password_hash,
+    full_name,
+    phone,
+    is_email_verified,
+    is_active,
+    last_login_at,
+    created_at
+from users
+where id = $1
+limit 1
+;
+
 -- name: CreateUserAccount :one
 INSERT INTO users(
   email, phone, full_name, password_hash
