@@ -78,6 +78,36 @@ type IntegrationSecret struct {
 	UpdatedAt      pgtype.Timestamptz
 }
 
+type Invoice struct {
+	ID            uuid.UUID
+	BusinessID    uuid.UUID
+	InvoiceNumber string
+	SellerPin     string
+	BuyerPin      pgtype.Text
+	Currency      pgtype.Text
+	Subtotal      pgtype.Numeric
+	VatTotal      pgtype.Numeric
+	Total         pgtype.Numeric
+	Status        string
+	KraInvoiceID  pgtype.Text
+	KraReceiptUrl pgtype.Text
+	IssuedAt      pgtype.Timestamptz
+	CreatedBy     uuid.NullUUID
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+}
+
+type InvoiceItem struct {
+	ID          uuid.UUID
+	InvoiceID   uuid.UUID
+	Description pgtype.Text
+	Quantity    pgtype.Numeric
+	UnitPrice   pgtype.Numeric
+	VatRate     pgtype.Numeric
+	VatAmount   pgtype.Numeric
+	LineTotal   pgtype.Numeric
+}
+
 type OutboxEvent struct {
 	ID            uuid.UUID
 	AggregateType string
