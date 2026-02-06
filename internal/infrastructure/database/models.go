@@ -36,6 +36,16 @@ type Business struct {
 	UpdatedAt    pgtype.Timestamptz
 }
 
+type BusinessIntegration struct {
+	ID          uuid.UUID
+	BusinessID  uuid.UUID
+	Provider    string
+	Environment string
+	Status      string
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
 type BusinessKyc struct {
 	ID           uuid.UUID
 	BusinessID   uuid.UUID
@@ -57,6 +67,15 @@ type BusinessUser struct {
 	IsActive   pgtype.Bool
 	CreatedAt  pgtype.Timestamptz
 	UpdatedAt  pgtype.Timestamptz
+}
+
+type IntegrationSecret struct {
+	ID             uuid.UUID
+	IntegrationID  uuid.UUID
+	KeyName        string
+	EncryptedValue string
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
 }
 
 type OutboxEvent struct {

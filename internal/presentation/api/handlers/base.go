@@ -33,4 +33,8 @@ func (h *apiHandlers) RegisterRoutes() {
 	// Businesses
 	bHandler := newBusinessHandler(h.queries, h.pool)
 	bHandler.RegisterRoutes(h.router)
+
+	// Integrations
+	iHandler := newIntegrationsHandler(h.queries, h.pool)
+	iHandler.RegisterRoutes(h.router)
 }
