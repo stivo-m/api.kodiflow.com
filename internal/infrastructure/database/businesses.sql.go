@@ -234,6 +234,19 @@ func (q *Queries) GetBusinessKYC(ctx context.Context, businessID uuid.UUID) ([]B
 	return items, nil
 }
 
+const getBusinessKraPin = `-- name: GetBusinessKraPin :one
+select kra_pin
+from businesses
+where id = $1
+`
+
+func (q *Queries) GetBusinessKraPin(ctx context.Context, id uuid.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, getBusinessKraPin, id)
+	var kra_pin string
+	err := row.Scan(&kra_pin)
+	return kra_pin, err
+}
+
 const getUserBusinessRole = `-- name: GetUserBusinessRole :one
 select role
 from business_users

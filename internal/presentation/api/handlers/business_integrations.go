@@ -14,12 +14,14 @@ import (
 )
 
 type integrationsHandler struct {
+	queries *database.Queries
 	usecase *usecase.BusinessIntegrationUsecase
 }
 
 // new integrations handler
 func newIntegrationsHandler(queries *database.Queries, pool *pgxpool.Pool) *integrationsHandler {
 	return &integrationsHandler{
+		queries: queries,
 		usecase: usecase.NewBusinessIntegrationUsecase(queries, pool),
 	}
 }
@@ -39,7 +41,7 @@ func (h *integrationsHandler) RegisterRoutes(router *http.ServeMux) {
 
 	protected := middleware.CreateMiddlewareStack(
 		middleware.AuthMiddleware,
-		middleware.BusinessContextMiddleware,
+		middleware.BusinessContextMiddleware(h.queries),
 	)
 
 	router.Handle("/integrations/", http.StripPrefix("/integrations", protected(r)))

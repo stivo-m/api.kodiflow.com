@@ -2,7 +2,8 @@ package server
 
 import (
 	"context"
-	"log"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -54,15 +55,15 @@ func (s *httpServer) RunServer(router http.Handler) error {
 		Handler:      stack(router),
 	}
 
-	log.Println("Database connection successful")
-	log.Printf("Server started at http://localhost%s", s.Config.Address)
+	slog.Info("Database connection successful")
+	slog.Info(fmt.Sprintf("Server started at http://localhost%s", s.Config.Address))
 	return s.Svr.ListenAndServe()
 }
 
 // Gracefully shutdown the server after completing all pending requests
 func (s *httpServer) ShutdownServer(ctx context.Context) error {
 	if s.Svr != nil {
-		log.Printf("Shutting down the server...")
+		slog.Info("Shutting down the server...")
 		return s.Svr.Shutdown(ctx)
 	}
 

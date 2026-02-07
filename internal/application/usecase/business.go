@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -24,29 +23,6 @@ type BusinessUsecase struct {
 // new business usecase
 func NewBusinessUsecase(queries *database.Queries, pool *pgxpool.Pool) *BusinessUsecase {
 	return &BusinessUsecase{queries: queries, pool: pool}
-}
-
-// Checks if a given user is part of a given business
-func (u *BusinessUsecase) checkUserBusinessOwnership(ctx context.Context, businessId uuid.UUID) (bool, error) {
-	userId, err := helpers.GetUserFromContext(ctx)
-	if err != nil {
-		return false, err
-	}
-
-	params := database.CheckIfUserIsPartOfBusinessParams{
-		BusinessID: businessId,
-		UserID:     userId,
-	}
-	ok, err := u.queries.CheckIfUserIsPartOfBusiness(ctx, params)
-	if err != nil {
-		return false, err
-	}
-
-	if !ok {
-		return false, errors.New("user is not part of this businessess")
-	}
-
-	return true, nil
 }
 
 // Creates a new business on behalf of the authenticated user and adds them as the admin
@@ -148,15 +124,6 @@ func (u *BusinessUsecase) CreateBusinessUsecase(ctx context.Context, payload *dt
 
 // Adds a user to the business
 func (u *BusinessUsecase) AddUserToBusinessUsecase(ctx context.Context, payload *dto.AddUserToBusinessDto) *api.ApiResponse {
-	owns, err := u.checkUserBusinessOwnership(ctx, payload.BusinessId)
-	if err != nil || !owns {
-		return &api.ApiResponse{
-			Code:    403,
-			Errors:  err,
-			Message: "Unable to verify if authenticated user owns the current business",
-		}
-	}
-
 	tx, err := u.pool.Begin(ctx)
 	if err != nil {
 		return &api.ApiResponse{
@@ -275,15 +242,6 @@ func (u *BusinessUsecase) ListBusinessessForUserUsecase(ctx context.Context) *ap
 
 // Creates a business KYC
 func (u *BusinessUsecase) CreateBusinessKycUsecase(ctx context.Context, businessId uuid.UUID, payload *dto.CreateBusinessKycDto) *api.ApiResponse {
-	owns, err := u.checkUserBusinessOwnership(ctx, businessId)
-	if err != nil || !owns {
-		return &api.ApiResponse{
-			Code:    403,
-			Errors:  err,
-			Message: "Unable to verify user is part of this business",
-		}
-	}
-
 	params := database.CreateBusinessKYCParams{
 		BusinessID:   businessId,
 		DocumentType: pgtype.Text{String: payload.DocumentType, Valid: true},
@@ -318,15 +276,6 @@ func (u *BusinessUsecase) CreateBusinessKycUsecase(ctx context.Context, business
 
 // Lists kyc records for a business
 func (u *BusinessUsecase) ListKycForBusinessUsecase(ctx context.Context, businessId uuid.UUID) *api.ApiResponse {
-	owns, err := u.checkUserBusinessOwnership(ctx, businessId)
-	if err != nil || !owns {
-		return &api.ApiResponse{
-			Code:    403,
-			Errors:  err,
-			Message: "Unable to verify user is part of this business",
-		}
-	}
-
 	rows, err := u.queries.GetBusinessKYC(ctx, businessId)
 	if err != nil && err != sql.ErrNoRows {
 		return &api.ApiResponse{

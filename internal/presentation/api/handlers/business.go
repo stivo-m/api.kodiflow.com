@@ -3,7 +3,6 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stivo-m/api.kodiflow.com/internal/application/dto"
 	"github.com/stivo-m/api.kodiflow.com/internal/application/usecase"
@@ -14,12 +13,14 @@ import (
 )
 
 type businessHandler struct {
+	queries *database.Queries
 	usecase *usecase.BusinessUsecase
 }
 
 // New business handler
 func newBusinessHandler(queries *database.Queries, pool *pgxpool.Pool) *businessHandler {
 	return &businessHandler{
+		queries: queries,
 		usecase: usecase.NewBusinessUsecase(queries, pool),
 	}
 }
@@ -27,18 +28,25 @@ func newBusinessHandler(queries *database.Queries, pool *pgxpool.Pool) *business
 // Register routes
 func (h *businessHandler) RegisterRoutes(router *http.ServeMux) {
 	r := http.NewServeMux()
-
 	r.Handle("POST /", helpers.ValidateBody(h.createBusinessHandler))
-	r.Handle("POST /{businessId}/users", helpers.ValidateBody(h.addUsersToBusinessHandler))
 	r.HandleFunc("GET /", h.listBusinessessHandler)
-	r.Handle("POST /{businessId}/kyc", helpers.ValidateBody(h.createBusinessKycHandler))
-	r.HandleFunc("GET /{businessId}/kyc", h.listKycForBusiness)
-
 	protected := middleware.CreateMiddlewareStack(
 		middleware.AuthMiddleware,
 	)
 
 	router.Handle("/businesses/", http.StripPrefix("/businesses", protected(r)))
+
+	// Verify business ownership
+	br := http.NewServeMux()
+	br.Handle("POST /users", helpers.ValidateBody(h.addUsersToBusinessHandler))
+	br.Handle("POST /kyc", helpers.ValidateBody(h.createBusinessKycHandler))
+	br.HandleFunc("GET /kyc", h.listKycForBusiness)
+
+	businessProtected := middleware.CreateMiddlewareStack(
+		middleware.AuthMiddleware,
+		middleware.BusinessContextMiddleware(h.queries),
+	)
+	router.Handle("/business/", http.StripPrefix("/business", businessProtected(br)))
 }
 
 // Creates a new business
@@ -61,9 +69,7 @@ func (h *businessHandler) listBusinessessHandler(w http.ResponseWriter, r *http.
 
 // Add business kyc
 func (h *businessHandler) createBusinessKycHandler(w http.ResponseWriter, r *http.Request, payload dto.CreateBusinessKycDto) {
-
-	businessIdStr := r.PathValue("businessId")
-	businessId, err := uuid.Parse(businessIdStr)
+	businessId, err := helpers.BusinessFromContext(r.Context())
 	if err != nil {
 		err := api.ApiResponse{
 			Code:    400,
@@ -79,9 +85,7 @@ func (h *businessHandler) createBusinessKycHandler(w http.ResponseWriter, r *htt
 
 // List kyc for business
 func (h *businessHandler) listKycForBusiness(w http.ResponseWriter, r *http.Request) {
-
-	businessIdStr := r.PathValue("businessId")
-	businessId, err := uuid.Parse(businessIdStr)
+	businessId, err := helpers.BusinessFromContext(r.Context())
 	if err != nil {
 		err := api.ApiResponse{
 			Code:    400,

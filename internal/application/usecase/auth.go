@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -20,17 +20,20 @@ import (
 type AuthUsecase struct {
 	queries *database.Queries
 	pool    *pgxpool.Pool
+	logger  *slog.Logger
 }
 
 // Instantiates a new auth usecase
 func NewAuthUsecase(queries *database.Queries, pool *pgxpool.Pool) *AuthUsecase {
-	return &AuthUsecase{queries: queries, pool: pool}
+	logger := slog.Default().WithGroup("metadata").With(slog.String("type", "usecase"), slog.String("name", "auth"))
+	return &AuthUsecase{queries: queries, pool: pool, logger: logger}
 }
 
 // Handle creating a new user account
 func (u *AuthUsecase) CreateUserUsecase(ctx context.Context, payload *dto.CreateUserDto) *api.ApiResponse {
 	tx, err := u.pool.Begin(ctx)
 	if err != nil {
+		u.logger.Error("failed to start transaction when creating a user")
 		return &api.ApiResponse{
 			Code:    500,
 			Errors:  err,
@@ -47,6 +50,7 @@ func (u *AuthUsecase) CreateUserUsecase(ctx context.Context, payload *dto.Create
 	}
 	exists, err := qtx.CheckIfContactIsTaken(ctx, contacts)
 	if err != nil || exists {
+		u.logger.Error("failed to check if a contact is taken when creating a user", "error", err)
 		return &api.ApiResponse{
 			Code:    400,
 			Errors:  err,
@@ -56,6 +60,7 @@ func (u *AuthUsecase) CreateUserUsecase(ctx context.Context, payload *dto.Create
 
 	passwordHash, err := hashing.HashPassword(payload.Password)
 	if err != nil {
+		u.logger.Error("failed to hash user password when creating a user", "error", err)
 		return &api.ApiResponse{
 			Code:    500,
 			Errors:  err,
@@ -72,6 +77,7 @@ func (u *AuthUsecase) CreateUserUsecase(ctx context.Context, payload *dto.Create
 
 	user, err := qtx.CreateUserAccount(ctx, userParams)
 	if err != nil {
+		u.logger.Error("failed to create a user account on the database", "error", err)
 		return &api.ApiResponse{
 			Code:    500,
 			Errors:  err,
@@ -96,6 +102,7 @@ func (u *AuthUsecase) CreateUserUsecase(ctx context.Context, payload *dto.Create
 
 	err = qtx.CreateOutboxEvent(ctx, evtPayload)
 	if err != nil {
+		u.logger.Error("failed to create outbox event for registered user", "error", err)
 		return &api.ApiResponse{
 			Code:    500,
 			Errors:  err,
@@ -115,6 +122,7 @@ func (u *AuthUsecase) CreateUserUsecase(ctx context.Context, payload *dto.Create
 func (u *AuthUsecase) PhoneLoginUsecase(ctx context.Context, payload *dto.PhoneLoginDto) *api.ApiResponse {
 	tx, err := u.pool.Begin(ctx)
 	if err != nil {
+		u.logger.Error("failed to start transaction while using phone login", "error", err)
 		return &api.ApiResponse{
 			Code:    500,
 			Errors:  err,
@@ -128,6 +136,7 @@ func (u *AuthUsecase) PhoneLoginUsecase(ctx context.Context, payload *dto.PhoneL
 	findParam := pgtype.Text{Valid: true, String: payload.Phone}
 	user, err := qtx.FindUserByPhone(ctx, findParam)
 	if err != nil {
+		u.logger.Error("failed to find user by phone using phone login", "error", err)
 		if err == sql.ErrNoRows {
 			return &api.ApiResponse{
 				Code:    404,
@@ -143,6 +152,7 @@ func (u *AuthUsecase) PhoneLoginUsecase(ctx context.Context, payload *dto.PhoneL
 	}
 
 	if !user.IsActive.Bool || !user.IsEmailVerified.Bool {
+
 		return &api.ApiResponse{
 			Code:    403,
 			Message: "User is either inactive or has not verified their email address",
@@ -151,6 +161,7 @@ func (u *AuthUsecase) PhoneLoginUsecase(ctx context.Context, payload *dto.PhoneL
 
 	accessToken, err := hashing.CreateJwtToken(user.ID)
 	if err != nil {
+		u.logger.Error("failed to generate user access token when using phone login", "error", err)
 		return &api.ApiResponse{
 			Code:    500,
 			Errors:  err,
@@ -160,6 +171,7 @@ func (u *AuthUsecase) PhoneLoginUsecase(ctx context.Context, payload *dto.PhoneL
 
 	refreshToken, err := hashing.GenerateRefreshToken(hashing.RefreshTokenTtl)
 	if err != nil {
+		u.logger.Error("failed to generate refresh token when using phone login", "error", err)
 		return &api.ApiResponse{
 			Code:    500,
 			Errors:  err,
@@ -178,6 +190,7 @@ func (u *AuthUsecase) PhoneLoginUsecase(ctx context.Context, payload *dto.PhoneL
 
 	err = qtx.CreateRefreshToken(ctx, params)
 	if err != nil {
+		u.logger.Error("failed to persist refresh token when using phone login", "error", err)
 		return &api.ApiResponse{
 			Code:    500,
 			Errors:  err,
@@ -214,6 +227,7 @@ func (u *AuthUsecase) PhoneLoginUsecase(ctx context.Context, payload *dto.PhoneL
 func (u *AuthUsecase) EmailLoginUsecase(ctx context.Context, payload *dto.EmailLoginDto) *api.ApiResponse {
 	tx, err := u.pool.Begin(ctx)
 	if err != nil {
+		u.logger.Error("failed to start db transaction when using email login", "error", err)
 		return &api.ApiResponse{
 			Code:    500,
 			Errors:  err,
@@ -226,6 +240,7 @@ func (u *AuthUsecase) EmailLoginUsecase(ctx context.Context, payload *dto.EmailL
 
 	user, err := qtx.FindUserByEmail(ctx, payload.Email)
 	if err != nil {
+		u.logger.Error("failed to find user by email when using email login", "error", err)
 		if err == sql.ErrNoRows {
 			return &api.ApiResponse{
 				Code:    404,
@@ -240,8 +255,6 @@ func (u *AuthUsecase) EmailLoginUsecase(ctx context.Context, payload *dto.EmailL
 		}
 	}
 
-	log.Printf("active: %v and verified: %v", user.IsActive.Bool, user.IsEmailVerified.Bool)
-
 	if !user.IsActive.Bool || !user.IsEmailVerified.Bool {
 		return &api.ApiResponse{
 			Code:    403,
@@ -251,6 +264,7 @@ func (u *AuthUsecase) EmailLoginUsecase(ctx context.Context, payload *dto.EmailL
 
 	accessToken, err := hashing.CreateJwtToken(user.ID)
 	if err != nil {
+		u.logger.Error("failed to generate access token when using email login", "error", err)
 		return &api.ApiResponse{
 			Code:    500,
 			Errors:  err,
@@ -260,6 +274,7 @@ func (u *AuthUsecase) EmailLoginUsecase(ctx context.Context, payload *dto.EmailL
 
 	refreshToken, err := hashing.GenerateRefreshToken(hashing.RefreshTokenTtl)
 	if err != nil {
+		u.logger.Error("failed to generate refresh token when using email login", "error", err)
 		return &api.ApiResponse{
 			Code:    500,
 			Errors:  err,
@@ -278,6 +293,7 @@ func (u *AuthUsecase) EmailLoginUsecase(ctx context.Context, payload *dto.EmailL
 
 	err = qtx.CreateRefreshToken(ctx, params)
 	if err != nil {
+		u.logger.Error("failed to persist refresh token when using email login", "error", err)
 		return &api.ApiResponse{
 			Code:    500,
 			Errors:  err,
@@ -314,6 +330,7 @@ func (u *AuthUsecase) EmailLoginUsecase(ctx context.Context, payload *dto.EmailL
 func (u *AuthUsecase) VerifyEmailUsecase(ctx context.Context, payload *dto.VerifyEmailDto) *api.ApiResponse {
 	tx, err := u.pool.Begin(ctx)
 	if err != nil {
+		u.logger.Error("failed to start db transaction when verifying email", "error", err)
 		return &api.ApiResponse{
 			Code:    500,
 			Errors:  err,
@@ -326,6 +343,7 @@ func (u *AuthUsecase) VerifyEmailUsecase(ctx context.Context, payload *dto.Verif
 
 	user, err := qtx.FindUserByEmail(ctx, payload.Email)
 	if err != nil {
+		u.logger.Error("failed to find user by email when verifying email", "error", err)
 		return &api.ApiResponse{
 			Code:    400,
 			Errors:  err,
@@ -339,6 +357,7 @@ func (u *AuthUsecase) VerifyEmailUsecase(ctx context.Context, payload *dto.Verif
 	}
 	v, err := qtx.GetVerifiationByCodeForUser(ctx, params)
 	if err != nil {
+		u.logger.Error("failed to find verificaiton for user when verifying email", "user_id", user.ID, "error", err)
 		return &api.ApiResponse{
 			Code:    400,
 			Errors:  err,
@@ -348,6 +367,7 @@ func (u *AuthUsecase) VerifyEmailUsecase(ctx context.Context, payload *dto.Verif
 
 	err = qtx.MarkEmailAsVerified(ctx, user.ID)
 	if err != nil {
+		u.logger.Error("failed to mark email as verified user when verifying email", "user_id", user.ID, "error", err)
 		return &api.ApiResponse{
 			Code:    400,
 			Errors:  err,
@@ -357,6 +377,7 @@ func (u *AuthUsecase) VerifyEmailUsecase(ctx context.Context, payload *dto.Verif
 
 	err = qtx.MarkVerificationCodeAsConsumed(ctx, v.ID)
 	if err != nil {
+		u.logger.Error("failed to mark verification record as consumed user when verifying email", "user_id", user.ID, "error", err)
 		return &api.ApiResponse{
 			Code:    400,
 			Errors:  err,

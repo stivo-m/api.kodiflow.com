@@ -37,4 +37,8 @@ func (h *apiHandlers) RegisterRoutes() {
 	// Integrations
 	iHandler := newIntegrationsHandler(h.queries, h.pool)
 	iHandler.RegisterRoutes(h.router)
+
+	// Invoices
+	invHandler := newInvoiceHandler(h.queries, h.pool)
+	invHandler.RegisterRoutes(h.router)
 }

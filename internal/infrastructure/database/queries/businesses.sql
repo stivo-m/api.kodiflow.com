@@ -129,3 +129,10 @@ select
 select exists (select 1 from business_users where business_id = $1 and user_id = $2)
 ;
 
+
+-- name: GetBusinessKraPin :one
+select kra_pin
+from businesses
+where id = $1
+;
+
